@@ -7,16 +7,34 @@ class SmoothingNet(nn.Module):
         self.batch_norm = nn.BatchNorm2d(64)
         self.relu = nn.ReLU()
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.conv3_reduce_half = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1)
+        self.conv1_in = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2_in = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv3_downsample = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1)
 
         self.resnets = []
-        for dilation_power in range(1,5):
+        for dilation_power in range(1,6):
+            self.resnets.append(ResNet(2**dilation_power, 2**dilation_power))
 
+        self.transpose_conv1 = nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1)
+        self.conv1_out = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2_out = nn.Conv2d(in_channels=64, out_channels=3, kernel_size=3, stride=1, padding=1)
 
     def forward(self, image):
-        return image
+        identity = image
+        smooth_image_residual = self.relu(self.batch_norm(self.conv1_in(image)))
+        smooth_image_residual = self.relu(self.batch_norm(self.conv2_in(smooth_image_residual)))
+        smooth_image_residual = self.relu(self.batch_norm(self.conv3_downsample(smooth_image_residual)))
+
+        for resnet in self.resnets:
+            smooth_image_residual = resnet(smooth_image_residual)
+
+        smooth_image_residual = self.transpose_conv1(smooth_image_residual)
+        smooth_image_residual = self.conv1_out(smooth_image_residual)
+        smooth_image_residual = self.conv2_out(smooth_image_residual)
+
+        smooth_image = smooth_image_residual + identity
+
+        return smooth_image
 
 
 class ResNet(nn.Module):
