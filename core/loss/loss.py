@@ -1,3 +1,5 @@
+import torch
+from torch import nn
 
 
 class EdgeResponse(nn.Module):
@@ -18,7 +20,8 @@ class EdgeResponse(nn.Module):
         # loop through every pixel j around the pixel i, and calculate the absolute difference
         for x in range(-1, 2):
             for y in range(-1, 2):
-                adjacent_differences.append(torch.abs(torch.sum(image[:, :, 1+x:width-1+x, 1+y:height-1+y]-image_without_edge, dim=1)))
+                adjacent_differences.append(
+                    torch.abs(torch.sum(image[:, :, 1+x:width-1+x, 1+y:height-1+y]-image_without_edge, dim=1)))
         # top_left = sum(torch.abs(image[:, :, :-2, :-2] - image_without_edge), dim=1)
         # top = torch.abs(torch.abs(image[:, :, :-2, 1:-1] - image_without_edge), dim=1)
         # top_right = torch.abs(torch.abs(image[:, :, :-2, 2:] - image_without_edge), dim=1)
