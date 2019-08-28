@@ -1,4 +1,5 @@
 import torch
+from torch.functional import F
 from torch import nn
 from core.loss.edgeresponse import EdgeResponse
 
@@ -17,3 +18,11 @@ class EdgePreservingLoss(nn.Module):
 
         return torch.sum(1 / number_of_important_edges * binary_mask * \
                (original_image_edge_response - smooth_image_edge_response) ** 2)
+
+
+
+
+
+
+
+
