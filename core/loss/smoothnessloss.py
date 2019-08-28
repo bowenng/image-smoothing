@@ -4,54 +4,55 @@ from core.loss.edgeresponse import EdgeResponse
 
 
 class SmoothnessLoss(nn.Module):
-    def __init__(self, c1=1.0, c2=2.0, p_small=0.8, p_large=2.0):
+    def __init__(self, sigma_color,sigma_space,window_size=1, lp=0.8):
+        """
+
+        :param sigma_color: see paper
+        :param sigma_space: see paper
+        :param window_size: distance from center, =1 for 3x3 kernel, =2 for 5x5 kernel
+        :param lp: LP norm
+        """
         super().__init__()
-        self.E = EdgeResponse()
-        self.c1 = c1
-        self.c2 = c2
-        self.p_small = p_small
-        self.p_large = p_large
+        self.sigma_color = 1 / (sigma_color * sigma_color * 2)
+        self.sigma_space = 1 / (sigma_space * sigma_space * 2)
+        self.window_size = window_size
+        self.lp = lp
 
-    def forward(self, original_image, smooth_image):
-        smooth_image_without_border = smooth_image[:, :, 1:-1, 1:-1]
-        original_image_without_border = original_image[:, :, 1:-1, 1:-1]
-        width = smooth_image.shape[2]
-        height = smooth_image.shape[3]
+    def forward(self, original_images, smooth_images):
+        """
+        :param original_image:
+        :param smooth_image:
+        :return:
 
-        Ti_Tj = []
-        for x in range(-1, 2):
-            for y in range(-1, 2):
-                Ti_Tj.append(
-                    torch.abs(
-                        torch.sum(
-                            smooth_image[:, :, 1+x:width-1+x, 1+y:height-1+y]-smooth_image_without_border, dim=1)))
+        1. calculate Ti-Tj and stack the resulting Tensors
+        2. calculate binary masks for (ws, p_large) and (wr, p_small), and calculate ws and wr
+        3. apply the binary masks, and apply (w, p)
+        """
 
-        Ti_Tj_tensor = torch.stack(Ti_Tj, dim=1)
+    def calculate_ti_minus_tj(self, smooth_images):
+        window_size = self.window_size
 
-        original_image_edge_response = self.E(original_image)
-        smooth_image_edge_response = self.E(smooth_image)
+        # initialize Tensor of shape (batch size, window_size ** 2, h, w) to hold Ti - Tj
+        shape = smooth_images.shape
+        batch_size, height, width = shape[0], shape[2], shape[3]
+        ti_minus_tj = torch.Tensor(batch_size, window_size*window_size, height, width)
 
-        p_large_mask = (original_image_edge_response < self.c1) \
-                          & (smooth_image_edge_response - original_image_edge_response > self.c2)
-        p_small_mask = ~p_large_mask
+        # reflection pads the image
+        reflection_pad = nn.ReflectionPad2d(1)
+        smooth_images_padded = reflection_pad(smooth_images)
 
-        #wr
-        adjacent_differences = []
-        # loop through every pixel j around the pixel i, and calculate the absolute difference
-        for x in range(-1, 2):
-            for y in range(-1, 2):
-                adjacent_differences.append(
-                    torch.sum((original_image[:, :, 1 + x:width - 1 + x, 1 + y:height - 1 + y] -
-                               original_image_without_border) ** 2, dim=1))
-        adjacent_differences = torch.stack(adjacent_differences, dim=1)
-        wr = torch.exp(-adjacent_differences)
+        # loop through all surrounding pixel j's, and store the result in ti_minus_tj
+        for x in range(-window_size, window_size+1):
+            for y in range(-window_size, window_size+1):
+                ti_minus_tj[:,x+y, :, :] = smooth_images - smooth_images_padded[:, :,window_size+x, window_size+y]
 
-        num_pixels = width*height
+        return ti_minus_tj
 
-        return torch.sum(1 / num_pixels * (
-            wr * p_large_mask.float() * Ti_Tj_tensor ** self.p_small
-            + wr * p_small_mask.float() * Ti_Tj_tensor ** self.p_large
-        ))
+
+
+
+
+
 
 
 
