@@ -23,8 +23,8 @@ class EdgeResponse(nn.Module):
 
         i_minus_j = torch.Tensor(batch_size, window_length**2, height, width)
 
-        for x in range(-window_length, window_length+1):
-            for y in range(-window_length, window_length+1):
+        for x in range(-window_size, window_size + 1):
+            for y in range(-window_size, window_size + 1):
                 x_start = window_size + x
                 x_end = x_start + width
                 y_start = window_size + y

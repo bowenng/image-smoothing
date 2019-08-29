@@ -4,7 +4,7 @@ from core.loss.edgeresponse import EdgeResponse
 
 
 class SmoothnessLoss(nn.Module):
-    def __init__(self, sigma_color,sigma_space,window_size=1, lp=0.8, c1=1, c2=1):
+    def __init__(self, sigma_color=0.1,sigma_space=7, window_size=21, lp=0.8, c1=20, c2=10):
         """
 
         :param sigma_color: see paper
@@ -17,6 +17,8 @@ class SmoothnessLoss(nn.Module):
         self.sigma_space = 1 / (sigma_space * sigma_space * 2)
         self.window_size = window_size
         self.lp = lp
+        self.c1 = c1
+        self.c2 = c2
 
     def forward(self, original_images, smooth_images):
         """
@@ -74,7 +76,7 @@ class SmoothnessLoss(nn.Module):
 
         use_p_small_wr = ~use_p_large_ws
 
-        return use_p_large_ws, use_p_small_wr
+        return use_p_large_ws.float(), use_p_small_wr.float()
 
     def calculate_wr(self, original_images):
         window_size = self.window_size
@@ -105,15 +107,11 @@ class SmoothnessLoss(nn.Module):
         batch_size, n_channel, height, width = smooth_images.shape
         ws = torch.Tensor(batch_size, window_length ** 2, height, width)
 
-        # reflection pads the image
-        reflection_pad = nn.ReflectionPad2d(window_size)
-        smooth_images_padded = reflection_pad(smooth_images)
-
         for x in range(-window_size, window_size + 1):
             for y in range(-window_size, window_size + 1):
                 x_y_1d_offset = x + window_size + (y + window_size) * window_length
                 ws[:, x_y_1d_offset, :, :] = torch.exp(
-                    -1*self.sigma_space*(x**2 + y**2)
+                    torch.FloatTensor(-1*self.sigma_space*(x**2 + y**2)).view(batch_size, height, width)
                 )
         return ws.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
 
