@@ -6,7 +6,7 @@ from core.data.utils import image_transform, edge_transform, is_image
 
 class Dataset(data.Dataset):
 
-    def __init__(self, image_dir, edge_dir, edge_prefix="edge_", image_transform=image_transform, edge_transform=edge_transform):
+    def __init__(self, image_dir, edge_dir, edge_prefix="edge_", image_transform=image_transform(), edge_transform=edge_transform()):
         super().__init__()
         self.image_dir = image_dir
         image_files = os.listdir(image_dir)
@@ -34,7 +34,7 @@ class Dataset(data.Dataset):
         if self.edge_transform:
             edge = self.edge_transform(edge)
 
-        return image, edge[:,1,:,:]
+        return image, edge
 
     def __len__(self):
         return len(self.image_files)

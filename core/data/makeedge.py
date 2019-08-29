@@ -15,3 +15,4 @@ def make_edge_files(image_dir, edge_dir, cwd):
         cv.imwrite(os.path.join(edge_dir, "edge_"+image_name), edges)
 
 
+

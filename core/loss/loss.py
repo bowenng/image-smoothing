@@ -14,5 +14,5 @@ class TotalLoss(nn.Module):
         self.edge_preserving_loss = EdgePreservingLoss()
         self.smoothness_loss = SmoothnessLoss()
 
-    def forward(self, original_images, smooth_images):
-        return self.data_loss(original_images, smooth_images) + self.w_smooth * self.smoothness_loss(original_images, smooth_images) + self.w_edge_preserving + self.edge_preserving_loss(original_images, smooth_images)
+    def forward(self, original_images, smooth_images, binary_mask):
+        return self.data_loss(original_images, smooth_images) + self.w_smooth * self.smoothness_loss(original_images, smooth_images) + self.w_edge_preserving + self.edge_preserving_loss(binary_mask, original_images, smooth_images)
