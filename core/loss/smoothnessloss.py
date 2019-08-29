@@ -76,7 +76,7 @@ class SmoothnessLoss(nn.Module):
 
         use_p_small_wr = ~use_p_large_ws
 
-        return use_p_large_ws.float(), use_p_small_wr.float()
+        return use_p_large_ws.unsqueeze(1).float(), use_p_small_wr.unsqueeze(1).float()
 
     def calculate_wr(self, original_images):
         window_size = self.window_size
@@ -111,7 +111,7 @@ class SmoothnessLoss(nn.Module):
             for y in range(-window_size, window_size + 1):
                 x_y_1d_offset = x + window_size + (y + window_size) * window_length
                 ws[:, x_y_1d_offset, :, :] = torch.exp(
-                    torch.FloatTensor(-1*self.sigma_space*(x**2 + y**2)).view(batch_size, height, width)
+                    torch.tensor([-1*self.sigma_space*(x**2 + y**2)]).view(1,1,1).repeat(batch_size, height, width)
                 )
         return ws.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
 

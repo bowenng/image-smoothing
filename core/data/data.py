@@ -34,7 +34,7 @@ class Dataset(data.Dataset):
         if self.edge_transform:
             edge = self.edge_transform(edge)
 
-        return image, edge
+        return image, edge[:,1,:,:]
 
     def __len__(self):
         return len(self.image_files)

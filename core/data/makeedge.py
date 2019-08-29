@@ -14,6 +14,4 @@ def make_edge_files(image_dir, edge_dir, cwd):
         edges = cv.Canny(image, 100, 200)
         cv.imwrite(os.path.join(edge_dir, "edge_"+image_name), edges)
 
-    return edges
-
 

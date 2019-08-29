@@ -4,8 +4,7 @@ from torchvision import transforms
 def image_transform():
     return transforms.Compose([
         transforms.Resize(224),
-        transforms.CenterCrop(),
-        transforms.Normalize(),
+        transforms.CenterCrop(224),
         transforms.ToTensor()
     ])
 
@@ -13,8 +12,7 @@ def image_transform():
 def edge_transform():
     return transforms.Compose([
         transforms.Resize(224),
-        transforms.CenterCrop(),
-        transforms.Normalize(),
+        transforms.CenterCrop(224),
         transforms.ToTensor()
     ])
 
