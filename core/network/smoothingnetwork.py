@@ -11,10 +11,10 @@ class SmoothingNet(nn.Module):
         self.conv2_in = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.conv3_downsample = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1)
 
-        self.resnets = []
+        resnets = []
         for dilation_power in range(1,6):
-            self.resnets.append(ResNet(2**dilation_power, 2**dilation_power))
-
+            resnets.append(ResNet(2**dilation_power, 2**dilation_power))
+        self.resnets = nn.Sequential(*resnets)
         self.transpose_conv1 = nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1)
         self.conv1_out = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.conv2_out = nn.Conv2d(in_channels=64, out_channels=3, kernel_size=3, stride=1, padding=1)

@@ -6,6 +6,7 @@ from torch.functional import F
 class EdgeResponse(nn.Module):
     def __init__(self):
         super().__init__()
+        self.reflection_pad = nn.ReflectionPad2d(2)
 
     def forward(self, images):
         # 1. reflection pad the images
@@ -14,14 +15,13 @@ class EdgeResponse(nn.Module):
         batch_size, n_channel, height, width = shape
 
         # reflection pads the images
-        reflection_pad = nn.ReflectionPad2d(2)
-        images_padded = reflection_pad(images)
+        images_padded = self.reflection_pad(images)
 
         # 3x3 window
         window_size = 1
         window_length = 3
 
-        i_minus_j = torch.Tensor(batch_size, window_length**2, height, width)
+        i_minus_j = images.new(batch_size, window_length**2, height, width)
 
         for x in range(-window_size, window_size + 1):
             for y in range(-window_size, window_size + 1):

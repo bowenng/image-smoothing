@@ -19,6 +19,8 @@ class SmoothnessLoss(nn.Module):
         self.lp = lp
         self.c1 = c1
         self.c2 = c2
+        self.reflection_pad = nn.ReflectionPad2d(window_size)
+        self.edge_response_calculator = EdgeResponse()
 
     def forward(self, original_images, smooth_images):
         """
@@ -47,11 +49,10 @@ class SmoothnessLoss(nn.Module):
         # initialize Tensor of shape (batch size, window_size ** 2, n_channels, h, w) to hold Ti - Tj
         shape = smooth_images.shape
         batch_size, n_channel, height, width = shape[0], shape[1], shape[2], shape[3]
-        ti_minus_tj = torch.Tensor(batch_size, window_length**2, n_channel, height, width)
+        ti_minus_tj = smooth_images.new(batch_size, window_length**2, n_channel, height, width)
 
         # reflection pads the image
-        reflection_pad = nn.ReflectionPad2d(window_size)
-        smooth_images_padded = reflection_pad(smooth_images)
+        smooth_images_padded = self.reflection_pad(smooth_images)
 
         # loop through all surrounding pixel j's, and store the result in ti_minus_tj
         for x in range(-window_size, window_size+1):
@@ -66,10 +67,8 @@ class SmoothnessLoss(nn.Module):
         return ti_minus_tj
 
     def calculate_w_p_masks(self, original_images, smooth_images):
-        edge_response_calculator = EdgeResponse()
-
-        edge_response_original = edge_response_calculator(original_images)
-        edge_response_smooth = edge_response_calculator(smooth_images)
+        edge_response_original = self.edge_response_calculator(original_images)
+        edge_response_smooth = self.edge_response_calculator(smooth_images)
 
         use_p_large_ws = (edge_response_original < self.c1) & \
                              ((edge_response_smooth - edge_response_original) > self.c2)
@@ -84,10 +83,9 @@ class SmoothnessLoss(nn.Module):
         # initialize Tensor of shape (batch size, window_size ** 2, h, w) to hold Ti - Tj
         shape = original_images.shape
         batch_size, n_channel, height, width = shape[0], shape[1], shape[2], shape[3]
-        wr = torch.Tensor(batch_size, window_length ** 2, height, width)
+        wr = original_images.new(batch_size, window_length ** 2, height, width)
         # reflection pads the image
-        reflection_pad = nn.ReflectionPad2d(window_size)
-        original_images_padded = reflection_pad(original_images)
+        original_images_padded = self.reflection_pad(original_images)
 
         for x in range(-window_size, window_size + 1):
             for y in range(-window_size, window_size + 1):
@@ -105,7 +103,7 @@ class SmoothnessLoss(nn.Module):
         window_length = 2*window_size + 1
 
         batch_size, n_channel, height, width = smooth_images.shape
-        ws = torch.Tensor(batch_size, window_length ** 2, height, width)
+        ws = smooth_images.new(batch_size, window_length ** 2, height, width)
 
         for x in range(-window_size, window_size + 1):
             for y in range(-window_size, window_size + 1):
