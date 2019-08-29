@@ -24,10 +24,20 @@ class SmoothnessLoss(nn.Module):
         :param smooth_image:
         :return:
 
-        1. calculate Ti-Tj and stack the resulting Tensors
+        1. calculate Ti-Tj (batch_size, window_area, n_channel, height, width)
         2. calculate binary masks for (ws, p_large) and (wr, p_small), and calculate ws and wr
         3. apply the binary masks, and apply (w, p)
         """
+        ti_minus_tj = self.calculate_ti_minus_tj(smooth_images)
+        use_p_large_ws, use_p_small_wr = self.calculate_w_p_masks(original_images, smooth_images)
+        ws = self.calculate_ws(smooth_images)
+        wr = self.calculate_wr(original_images)
+
+        shape = original_images.shape
+        n_pixels = shape[2]*shape[3]
+        batch_size = shape[0]
+        smooth_loss = (1/(n_pixels*batch_size)) * torch.sum(use_p_large_ws * ws * (ti_minus_tj**2) + use_p_small_wr * wr * (ti_minus_tj**self.lp))
+        return smooth_loss
 
     def calculate_ti_minus_tj(self, smooth_images):
         window_size = self.window_size
@@ -67,7 +77,7 @@ class SmoothnessLoss(nn.Module):
         return use_p_large_ws, use_p_small_wr
 
     def calculate_wr(self, original_images):
-        window_size = 1
+        window_size = self.window_size
         window_length = 2 * window_size + 1
         # initialize Tensor of shape (batch size, window_size ** 2, h, w) to hold Ti - Tj
         shape = original_images.shape
@@ -87,6 +97,25 @@ class SmoothnessLoss(nn.Module):
                 difference = original_images - original_images_padded[:, :, x_start:x_end, y_start:y_end]
                 wr[:, x_y_1d_offset, :, :] = torch.exp((-self.sigma_color * difference**2).sum(1))
         return wr.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
+
+    def calculate_ws(self, smooth_images):
+        window_size = self.window_size
+        window_length = 2*window_size + 1
+
+        batch_size, n_channel, height, width = smooth_images.shape
+        ws = torch.Tensor(batch_size, window_length ** 2, height, width)
+
+        # reflection pads the image
+        reflection_pad = nn.ReflectionPad2d(window_size)
+        smooth_images_padded = reflection_pad(smooth_images)
+
+        for x in range(-window_size, window_size + 1):
+            for y in range(-window_size, window_size + 1):
+                x_y_1d_offset = x + window_size + (y + window_size) * window_length
+                ws[:, x_y_1d_offset, :, :] = torch.exp(
+                    -1*self.sigma_space*(x**2 + y**2)
+                )
+        return ws.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
 
 
 
