@@ -35,19 +35,28 @@ class SmoothnessLoss(nn.Module):
         """
         ti_minus_tj = self.calculate_ti_minus_tj(smooth_images)
         use_p_large_ws, use_p_small_wr = self.calculate_w_p_masks(original_images, smooth_images)
-        ws = self.calculate_ws(smooth_images)
+        ws = self.calculate_ws()
         wr = self.calculate_wr(original_images)
 
         shape = original_images.shape
         n_pixels = shape[2]*shape[3]
         batch_size = shape[0]
-        smooth_loss = (1/(n_pixels*batch_size)) * torch.sum(use_p_large_ws * ws * (ti_minus_tj**2) + use_p_small_wr * wr * (ti_minus_tj**self.lp))
+
+        scale_factor = (1/(n_pixels*batch_size))
+        print("p_large_mask", use_p_large_ws.shape)
+        print("p_small_mask", use_p_small_wr.shape)
+        print("ws", ws.shape)
+        print("wr", wr.shape)
+        print("ti minus tj", ti_minus_tj.shape)
+        large_term = use_p_large_ws * ws * (ti_minus_tj**2)
+        small_term = use_p_small_wr * wr * (ti_minus_tj**self.lp)
+        smooth_loss = scale_factor * torch.sum(large_term + small_term)
         return smooth_loss
 
     def calculate_ti_minus_tj(self, smooth_images):
         bs, c, h, w = smooth_images.shape
         image_patches = self.unfold(smooth_images).view(bs, -1, c, h, w)
-        mask = image_patches > 0
+        mask = (image_patches > 0).float()
         ti_minus_tj = mask * torch.abs(image_patches - smooth_images.view(bs, 1, c, h, w))
         return ti_minus_tj
 
@@ -59,34 +68,26 @@ class SmoothnessLoss(nn.Module):
                              ((edge_response_smooth - edge_response_original) > self.c2)
 
         use_p_small_wr = ~use_p_large_ws
-
-        return use_p_large_ws.unsqueeze(1).float(), use_p_small_wr.unsqueeze(1).float()
+        return use_p_large_ws.unsqueeze(1).unsqueeze(1).float(), use_p_small_wr.unsqueeze(1).unsqueeze(1).float()
 
     def calculate_wr(self, original_images):
         bs, c, h, w = original_images.shape
-        image_patches = self.unfold(original_images)
-        mask = image_patches > 0
+        image_patches = self.unfold(original_images).view(bs, -1, c, h, w)
+        mask = (image_patches > 0).float()
 
         color_difference = image_patches - original_images.view(bs, 1, c, h, w)
         color_difference = mask * color_difference ** 2
-        color_difference = color_difference.sum(axis=2)
-        color_affinity = torch.exp(-1 * self.sigma_color * color_difference)
+        color_difference = color_difference.sum(2, keepdim=True)
+        color_affinity = torch.exp(-1.0 * self.sigma_color * color_difference)
         return color_affinity
 
-    def calculate_ws(self, smooth_images):
+    def calculate_ws(self):
         window_size = self.window_size
-        window_length = 2*window_size + 1
-
-        batch_size, n_channel, height, width = smooth_images.shape
-        ws = smooth_images.new(batch_size, window_length ** 2, height, width)
-
-        for x in range(-window_size, window_size + 1):
-            for y in range(-window_size, window_size + 1):
-                x_y_1d_offset = x + window_size + (y + window_size) * window_length
-                ws[:, x_y_1d_offset, :, :] = torch.exp(
-                    torch.tensor([-1*self.sigma_space*(x**2 + y**2)]).view(1,1,1).repeat(batch_size, height, width)
-                )
-        return ws.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
+        h = torch.arange(-window_size, window_size + 1).view(-1, 1).repeat((1, 2 * window_size + 1))
+        w = torch.arange(-window_size, window_size + 1).view(1, -1).repeat(2 * window_size + 1, 1)
+        ws = torch.exp(-1.0 * self.sigma_space*(h**2 + w**2).float())
+        ws = ws.view(1, -1, 1, 1, 1)
+        return ws
 
 
 

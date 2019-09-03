@@ -13,11 +13,11 @@ class EdgeResponse(nn.Module):
         # 2. calculate simple edge response in a 3x3 window
         bs, c, h, w = images.shape
 
-        image_patches = self.unfold(images)
-
+        image_patches = self.unfold(images).view(bs, -1, c, h, w)
+        mask = (image_patches > 0).float()
         i_minus_j = image_patches - images.view(bs, 1, c, h, w)
 
-        edge_response = torch.abs(i_minus_j).sum(axis=2)
+        edge_response = torch.abs(i_minus_j).sum(2).sum(1)
         return edge_response
 
 
