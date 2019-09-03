@@ -4,7 +4,7 @@ from core.loss.edgeresponse import EdgeResponse
 
 
 class SmoothnessLoss(nn.Module):
-    def __init__(self, sigma_color=0.1,sigma_space=7, window_size=21, lp=0.8, c1=20, c2=10):
+    def __init__(self, sigma_color=0.1,sigma_space=7, lp=0.8, c1=20, c2=10, window_size=10, image_size=224):
         """
 
         :param sigma_color: see paper
@@ -21,6 +21,7 @@ class SmoothnessLoss(nn.Module):
         self.c2 = c2
         self.reflection_pad = nn.ReflectionPad2d(window_size)
         self.edge_response_calculator = EdgeResponse()
+        self.unfold = nn.Unfold(kernel_size=image_size, padding=window_size)
 
     def forward(self, original_images, smooth_images):
         """
@@ -44,26 +45,10 @@ class SmoothnessLoss(nn.Module):
         return smooth_loss
 
     def calculate_ti_minus_tj(self, smooth_images):
-        window_size = self.window_size
-        window_length = 2*window_size+1
-        # initialize Tensor of shape (batch size, window_size ** 2, n_channels, h, w) to hold Ti - Tj
-        shape = smooth_images.shape
-        batch_size, n_channel, height, width = shape[0], shape[1], shape[2], shape[3]
-        ti_minus_tj = smooth_images.new(batch_size, window_length**2, n_channel, height, width)
-
-        # reflection pads the image
-        smooth_images_padded = self.reflection_pad(smooth_images)
-
-        # loop through all surrounding pixel j's, and store the result in ti_minus_tj
-        for x in range(-window_size, window_size+1):
-            for y in range(-window_size, window_size+1):
-                x_start = window_size + x
-                x_end = x_start + width
-                y_start = window_size + y
-                y_end = y_start + height
-                x_y_1d_offset = x + window_size + (y + window_size) * window_length
-                ti_minus_tj[:,x_y_1d_offset, :, :, :] = torch.abs(smooth_images - smooth_images_padded[:, :,x_start:x_end, y_start:y_end])
-
+        bs, c, h, w = smooth_images.shape
+        image_patches = self.unfold(smooth_images).view(bs, -1, c, h, w)
+        mask = image_patches > 0
+        ti_minus_tj = mask * torch.abs(image_patches - smooth_images.view(bs, 1, c, h, w))
         return ti_minus_tj
 
     def calculate_w_p_masks(self, original_images, smooth_images):
@@ -78,25 +63,15 @@ class SmoothnessLoss(nn.Module):
         return use_p_large_ws.unsqueeze(1).float(), use_p_small_wr.unsqueeze(1).float()
 
     def calculate_wr(self, original_images):
-        window_size = self.window_size
-        window_length = 2 * window_size + 1
-        # initialize Tensor of shape (batch size, window_size ** 2, h, w) to hold Ti - Tj
-        shape = original_images.shape
-        batch_size, n_channel, height, width = shape[0], shape[1], shape[2], shape[3]
-        wr = original_images.new(batch_size, window_length ** 2, height, width)
-        # reflection pads the image
-        original_images_padded = self.reflection_pad(original_images)
+        bs, c, h, w = original_images.shape
+        image_patches = self.unfold(original_images)
+        mask = image_patches > 0
 
-        for x in range(-window_size, window_size + 1):
-            for y in range(-window_size, window_size + 1):
-                x_start = window_size + x
-                x_end = x_start + width
-                y_start = window_size + y
-                y_end = y_start + height
-                x_y_1d_offset = x + window_size + (y + window_size) * window_length
-                difference = original_images - original_images_padded[:, :, x_start:x_end, y_start:y_end]
-                wr[:, x_y_1d_offset, :, :] = torch.exp((-self.sigma_color * difference**2).sum(1))
-        return wr.view(batch_size, window_length * window_length, 1, height, width).repeat(1, 1, n_channel, 1, 1)
+        color_difference = image_patches - original_images.view(bs, 1, c, h, w)
+        color_difference = mask * color_difference ** 2
+        color_difference = color_difference.sum(axis=2)
+        color_affinity = torch.exp(-1 * self.sigma_color * color_difference)
+        return color_affinity
 
     def calculate_ws(self, smooth_images):
         window_size = self.window_size
