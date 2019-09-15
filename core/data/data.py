@@ -39,3 +39,25 @@ class Dataset(data.Dataset):
     def __len__(self):
         return len(self.image_files)
 
+class EvalDataset(data.Dataset):
+    def __init__(self, image_dir, image_transform=image_transform()) -> None:
+        super().__init__()
+        self.image_dir = image_dir
+        image_files = os.listdir(image_dir)
+        self.image_files = sorted([image_file for image_file in image_files if is_image(image_file)])
+        self.image_transform = image_transform
+
+    def __getitem__(self, index):
+        image_file_name = self.image_files[index]
+
+        image_path = os.path.join(self.image_dir, image_file_name)
+
+        image = Image.open(image_path).convert('RGB')
+
+        if self.image_transform:
+            image = self.image_transform(image)
+
+        return image
+
+    def __len__(self):
+        return len(self.image_files)
