@@ -46,18 +46,10 @@ class SmoothnessLoss(nn.Module):
         batch_size = shape[0]
 
         scale_factor = (1 / (n_pixels * batch_size)) / (self.window_size ** 2)
-        #         print("p_large_mask", use_p_large_ws.shape)
-        #         print("p_small_mask", use_p_small_wr.shape)
-        #         print("ws", ws.shape)
-        #         print("wr", wr.shape)
-        #         print("ti minus tj", ti_minus_tj.shape)
         ws = torch.where(use_p_large_ws, ws, torch.zeros_like(ws))
         wr = torch.where(use_p_small_wr, wr, torch.zeros_like(wr))
         large_term = self.alpha * ws * ti_minus_tj ** 2
         small_term = wr * (ti_minus_tj + self.epsilon) ** self.lp
-        #         print("l", torch.sum(large_term).item())
-        #         print("s", torch.sum(small_term).item())
-        # smooth_loss = scale_factor * torch.sum(large_term + small_term)
         smooth_loss = scale_factor * torch.sum(large_term + small_term)
         return smooth_loss
 
@@ -97,21 +89,3 @@ class SmoothnessLoss(nn.Module):
         ws = torch.exp(-1.0 * self.sigma_space * (h ** 2 + w ** 2).float())
         ws = ws.view(1, -1, 1, 1, 1)
         return ws.cuda()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

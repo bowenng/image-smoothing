@@ -25,7 +25,7 @@ def play(output_images, output_dir, file_name):
                                     repeat_delay=1000)
 
     ani.save(os.path.join(output_dir, file_name))
-    plt.show()
+    
 
 def process_video(video_dir):
 
@@ -52,7 +52,7 @@ def to_numpy(tensor):
 
 if __name__ == '__main__':
     root = os.path.join('DAVIS', 'JPEGImages', '480p')
-    folder = 'bear'
+    folder = 'surf'
     video_dir = os.path.join(root, folder)
     output_dir = 'videos'
     outputs = process_video(video_dir)

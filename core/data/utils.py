@@ -17,5 +17,11 @@ def edge_transform():
     ])
 
 
+def eval_transform():
+    return transforms.Compose([
+        transforms.Resize(480),
+        transforms.ToTensor()
+    ])
+
 def is_image(file):
     return file.lower().endswith(('.jpg', '.png', '.jpeg'))

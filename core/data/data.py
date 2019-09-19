@@ -1,7 +1,7 @@
 from torch.utils import data
 import os
 from PIL import Image
-from core.data.utils import image_transform, edge_transform, is_image
+from core.data.utils import image_transform, edge_transform, eval_transform, is_image
 
 
 class Dataset(data.Dataset):
@@ -39,8 +39,9 @@ class Dataset(data.Dataset):
     def __len__(self):
         return len(self.image_files)
 
+
 class EvalDataset(data.Dataset):
-    def __init__(self, image_dir, image_transform=image_transform()) -> None:
+    def __init__(self, image_dir, image_transform=eval_transform()) -> None:
         super().__init__()
         self.image_dir = image_dir
         image_files = os.listdir(image_dir)
@@ -61,3 +62,29 @@ class EvalDataset(data.Dataset):
 
     def __len__(self):
         return len(self.image_files)
+
+
+class MultiFramesDataset(data.Dataset):
+    def __init__(self, video_dir, n_neighbors) -> None:
+        super().__init__()
+        assert n_neighbors % 2 == 1, "n_neighbors must be odd."
+        # video files shape: n_files, n_frames
+        video_files = [sorted(list(filter(is_image,os.listdir(os.path.join(video_dir,video_file)))))
+                            for video_file in os.listdir(video_dir)]
+
+        min_frame = float('inf')
+        for file in video_files:
+            min_frame = min(min_frame, len(file))
+
+        self.video_files = [file[:min_frame] for file in video_files]
+        self.n_videos = len(self.video_files)
+        self.n_frames = min_frame
+        self.n_neighbors = n_neighbors
+
+    def __getitem__(self, index):
+        video_idx = index % self.n_frames
+        return self.video_files[video_idx][index:index+2*self.n_neighbors]
+
+    def __len__(self):
+        return self.n_videos * (self.n_frames-2*self.n_neighbors)
+
