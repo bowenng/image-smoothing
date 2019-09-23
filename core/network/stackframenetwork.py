@@ -4,7 +4,7 @@ import torch
 
 
 class StackFrameNetwork(SmoothingNet):
-    def __init__(self, n_neighbors=3):
+    def __init__(self, n_neighbors=2):
         super().__init__()
         self.n_neighbors = n_neighbors
         self.n_frames = 2 * n_neighbors + 1

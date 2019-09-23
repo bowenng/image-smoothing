@@ -24,6 +24,6 @@ class TotalLoss(nn.Module):
         return self.D + self.E + self.S
 
     def get_loss(self):
-        return {"D": self.D,
-                "E": self.E,
-                "S": self.S}
+        return {"D": self.D.item(),
+                "E": self.E.item(),
+                "S": self.S.item()}

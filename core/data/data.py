@@ -7,7 +7,6 @@ from core.data.utils import image_transform, edge_transform, eval_transform, is_
 
 
 class Dataset(data.Dataset):
-
     def __init__(self, image_dir, edge_dir, edge_prefix="edge_", image_transform=image_transform(), edge_transform=edge_transform()):
         super().__init__()
         self.image_dir = image_dir
@@ -43,7 +42,7 @@ class Dataset(data.Dataset):
 
 
 class EvalDataset(data.Dataset):
-    def __init__(self, image_dir, image_transform=eval_transform()) -> None:
+    def __init__(self, image_dir, image_transform=eval_transform()):
         super().__init__()
         self.image_dir = image_dir
         image_files = os.listdir(image_dir)
@@ -88,7 +87,7 @@ class MultiFramesDataset(data.Dataset):
         min_frame = float('inf')
         for file in video_files:
             min_frame = min(min_frame, len(file))
-
+        min_frame = min_frame - min_frame % (2*n_neighbors+1)
         self.video_folders = video_folders
         self.edge_folders = edge_folders
         
